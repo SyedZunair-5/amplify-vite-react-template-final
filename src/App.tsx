@@ -1,16 +1,33 @@
 import { useEffect, useState } from "react";
 import type { Schema } from "../amplify/data/resource";
 import { generateClient } from "aws-amplify/data";
+import { useAuthenticator } from "@aws-amplify/ui-react";
 
 const client = generateClient<Schema>();
 
 function App() {
   const [todos, setTodos] = useState<Array<Schema["Todo"]["type"]>>([]);
+  const [contacts, setContacts] = useState<Array<Schema["Contacts"]["type"]>>(
+    []
+  );
+  const { signOut } = useAuthenticator();
 
   useEffect(() => {
-    client.models.Todo.observeQuery().subscribe({
+    // Subscribe to Todo observations
+    const todoSub = client.models.Todo.observeQuery().subscribe({
       next: (data) => setTodos([...data.items]),
     });
+
+    // Subscribe to Contacts observations
+    const contactsSub = client.models.Contacts.observeQuery().subscribe({
+      next: (data) => setContacts([...data.items]),
+    });
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      todoSub.unsubscribe();
+      contactsSub.unsubscribe();
+    };
   }, []);
 
   function createTodo() {
@@ -26,13 +43,17 @@ function App() {
           <li key={todo.id}>{todo.content}</li>
         ))}
       </ul>
-      <div>
-        🥳 App successfully hosted. Try creating a new todo.
-        <br />
-        <a href="https://docs.amplify.aws/react/start/quickstart/#make-frontend-updates">
-          Review next step of this tutorial.
-        </a>
-      </div>
+
+      <h1>Contacts</h1>
+      <ul>
+        {contacts.map((contact) => (
+          <li key={contact.id}>
+            {contact.username} (Age: {contact.age})
+          </li>
+        ))}
+      </ul>
+
+      <button onClick={signOut}>Sign out</button>
     </main>
   );
 }
